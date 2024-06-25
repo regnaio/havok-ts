@@ -1,0 +1,22 @@
+{
+	"name": "havok-ts",
+	"version": "0.0.1",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"format": "prettier . --write",
+		"lint": "prettier . --check && DEBUG=eslint:cli-engine eslint ."
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"devDependencies": {
+		"@types/node": "^20.14.7",
+		"@typescript-eslint/eslint-plugin": "^7.13.1",
+		"@typescript-eslint/parser": "^7.13.1",
+		"eslint": "^8.57.0",
+		"eslint-config-prettier": "^9.1.0",
+		"prettier": "^3.3.2",
+		"typescript": "^5.5.2"
+	}
+}
