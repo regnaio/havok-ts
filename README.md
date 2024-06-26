@@ -10,7 +10,10 @@ ncu -x 'eslint'
 
 npm run clean && npm run format && npm run lint && npm run build
 
+# browser-esbuild
 npx --yes serve ./ -p 3000
+
+# browser-vite
 npx --yes serve ./dist/ -p 3000
 
 ```
