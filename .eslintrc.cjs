@@ -63,6 +63,7 @@ module.exports = {
 	ignorePatterns: [
 		//
 		'dist/',
+		'lib/',
 		'node_modules/',
 		'tsc/',
 	],

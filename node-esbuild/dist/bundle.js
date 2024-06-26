@@ -1,8 +1,7 @@
 // tsc/index.js
 import fs from "node:fs/promises";
-import path from "node:path";
 
-// node_modules/@babylonjs/havok/lib/esm/HavokPhysics_es.js
+// ../lib/havok/esm/HavokPhysics_es.js
 var HavokPhysics = (() => {
   var _scriptDir = import.meta.url;
   return function(HavokPhysics2) {
@@ -22,11 +21,11 @@ var HavokPhysics = (() => {
     var ENVIRONMENT_IS_WEB = true;
     var ENVIRONMENT_IS_WORKER = false;
     var scriptDirectory = "";
-    function locateFile(path2) {
+    function locateFile(path) {
       if (Module["locateFile"]) {
-        return Module["locateFile"](path2, scriptDirectory);
+        return Module["locateFile"](path, scriptDirectory);
       }
-      return scriptDirectory + path2;
+      return scriptDirectory + path;
     }
     var read_, readAsync, readBinary, setWindowTitle;
     if (ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER) {
@@ -1944,11 +1943,7 @@ var HavokPhysics = (() => {
 var HavokPhysics_es_default = HavokPhysics;
 
 // tsc/index.js
-var wasmBinary = await fs.readFile(path.join(
-  //
-  import.meta.dirname,
-  "../",
-  "node_modules/@babylonjs/havok/lib/esm/HavokPhysics.wasm"
-));
-var havokInterface = await HavokPhysics_es_default({ wasmBinary });
-console.log(havokInterface);
+var HAVOK_WASM_WASM_FILE_PATH = "../lib/havok/esm/HavokPhysics.wasm";
+var wasmBinary = await fs.readFile(HAVOK_WASM_WASM_FILE_PATH);
+var HK = await HavokPhysics_es_default({ wasmBinary });
+console.log("HK:", HK);
