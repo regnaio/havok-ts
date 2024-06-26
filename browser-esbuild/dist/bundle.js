@@ -1,4 +1,4 @@
-// node_modules/@babylonjs/havok/lib/esm/HavokPhysics_es.js
+// ../../node_modules/@babylonjs/havok/lib/esm/HavokPhysics_es.js
 var HavokPhysics = (() => {
   var _scriptDir = import.meta.url;
   return function(HavokPhysics2) {
