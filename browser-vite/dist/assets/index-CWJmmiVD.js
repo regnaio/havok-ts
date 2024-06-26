@@ -51,5 +51,5 @@ var Module=typeof HavokPhysics!="undefined"?HavokPhysics:{};var readyPromiseReso
 );
 })();
 
-const havokInterface = await HavokPhysics();
-console.log(havokInterface);
+const HK = await HavokPhysics();
+console.log("HK:", HK);

@@ -9,7 +9,7 @@
 		"format": "prettier . --write",
 		"clean": "clear && rm -rf ./dist/ && mkdir ./dist/",
 		"lint": "prettier . --check && DEBUG=eslint:cli-engine eslint .",
-		"build": "tsc && node esbuild.mjs && rm -rf ./tsc/ && cp ./node_modules/@babylonjs/havok/lib/esm/HavokPhysics.wasm ./dist"
+		"build": "tsc && node esbuild.mjs && rm -rf ./tsc/ && cp ./node_modules/@babylonjs/havok/lib/esm/HavokPhysics.wasm ./dist/"
 	},
 	"keywords": [],
 	"author": "",
