@@ -16,6 +16,9 @@ npx --yes serve ./ -p 3000
 # browser-vite
 npx --yes serve ./dist/ -p 3000
 
+# node-esbuild
+node ./dist/bundle.js
+
 ```
 
 http://localhost:3000/

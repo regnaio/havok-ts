@@ -1940,7 +1940,5 @@ var HavokPhysics = (() => {
 var HavokPhysics_es_default = HavokPhysics;
 
 // tsc/index.js
-(async () => {
-  const havokInterface = await HavokPhysics_es_default();
-  console.log(havokInterface);
-})();
+var havokInterface = await HavokPhysics_es_default();
+console.log(havokInterface);

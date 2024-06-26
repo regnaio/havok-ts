@@ -1,40 +1,8 @@
-(function polyfill() {
-  const relList = document.createElement("link").relList;
-  if (relList && relList.supports && relList.supports("modulepreload")) {
-    return;
-  }
-  for (const link of document.querySelectorAll('link[rel="modulepreload"]')) {
-    processPreload(link);
-  }
-  new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      if (mutation.type !== "childList") {
-        continue;
-      }
-      for (const node of mutation.addedNodes) {
-        if (node.tagName === "LINK" && node.rel === "modulepreload")
-          processPreload(node);
-      }
-    }
-  }).observe(document, { childList: true, subtree: true });
-  function getFetchOpts(link) {
-    const fetchOpts = {};
-    if (link.integrity) fetchOpts.integrity = link.integrity;
-    if (link.referrerPolicy) fetchOpts.referrerPolicy = link.referrerPolicy;
-    if (link.crossOrigin === "use-credentials")
-      fetchOpts.credentials = "include";
-    else if (link.crossOrigin === "anonymous") fetchOpts.credentials = "omit";
-    else fetchOpts.credentials = "same-origin";
-    return fetchOpts;
-  }
-  function processPreload(link) {
-    if (link.ep)
-      return;
-    link.ep = true;
-    const fetchOpts = getFetchOpts(link);
-    fetch(link.href, fetchOpts);
-  }
-})();
+// tsc/index.js
+import fs from "node:fs/promises";
+import path from "node:path";
+
+// node_modules/@babylonjs/havok/lib/esm/HavokPhysics_es.js
 var HavokPhysics = (() => {
   var _scriptDir = import.meta.url;
   return function(HavokPhysics2) {
@@ -46,20 +14,25 @@ var HavokPhysics = (() => {
       readyPromiseReject = reject;
     });
     var moduleOverrides = Object.assign({}, Module);
+    var arguments_ = [];
+    var thisProgram = "./this.program";
     var quit_ = (status, toThrow) => {
       throw toThrow;
     };
     var ENVIRONMENT_IS_WEB = true;
+    var ENVIRONMENT_IS_WORKER = false;
     var scriptDirectory = "";
-    function locateFile(path) {
+    function locateFile(path2) {
       if (Module["locateFile"]) {
-        return Module["locateFile"](path, scriptDirectory);
+        return Module["locateFile"](path2, scriptDirectory);
       }
-      return scriptDirectory + path;
+      return scriptDirectory + path2;
     }
-    var readBinary;
-    {
-      if (typeof document != "undefined" && document.currentScript) {
+    var read_, readAsync, readBinary, setWindowTitle;
+    if (ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER) {
+      if (ENVIRONMENT_IS_WORKER) {
+        scriptDirectory = self.location.href;
+      } else if (typeof document != "undefined" && document.currentScript) {
         scriptDirectory = document.currentScript.src;
       }
       if (_scriptDir) {
@@ -70,17 +43,50 @@ var HavokPhysics = (() => {
       } else {
         scriptDirectory = "";
       }
+      {
+        read_ = (url) => {
+          var xhr = new XMLHttpRequest();
+          xhr.open("GET", url, false);
+          xhr.send(null);
+          return xhr.responseText;
+        };
+        if (ENVIRONMENT_IS_WORKER) {
+          readBinary = (url) => {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", url, false);
+            xhr.responseType = "arraybuffer";
+            xhr.send(null);
+            return new Uint8Array(xhr.response);
+          };
+        }
+        readAsync = (url, onload, onerror) => {
+          var xhr = new XMLHttpRequest();
+          xhr.open("GET", url, true);
+          xhr.responseType = "arraybuffer";
+          xhr.onload = () => {
+            if (xhr.status == 200 || xhr.status == 0 && xhr.response) {
+              onload(xhr.response);
+              return;
+            }
+            onerror();
+          };
+          xhr.onerror = onerror;
+          xhr.send(null);
+        };
+      }
+      setWindowTitle = (title) => document.title = title;
+    } else {
     }
     var out = Module["print"] || console.log.bind(console);
     var err = Module["printErr"] || console.warn.bind(console);
     Object.assign(Module, moduleOverrides);
     moduleOverrides = null;
-    if (Module["arguments"]) Module["arguments"];
-    if (Module["thisProgram"]) Module["thisProgram"];
+    if (Module["arguments"]) arguments_ = Module["arguments"];
+    if (Module["thisProgram"]) thisProgram = Module["thisProgram"];
     if (Module["quit"]) quit_ = Module["quit"];
     var POINTER_SIZE = 4;
-    var wasmBinary;
-    if (Module["wasmBinary"]) wasmBinary = Module["wasmBinary"];
+    var wasmBinary2;
+    if (Module["wasmBinary"]) wasmBinary2 = Module["wasmBinary"];
     var noExitRuntime = Module["noExitRuntime"] || true;
     if (typeof WebAssembly != "object") {
       abort("no native wasm support detected");
@@ -88,6 +94,11 @@ var HavokPhysics = (() => {
     var wasmMemory;
     var ABORT = false;
     var EXITSTATUS;
+    function assert(condition, text) {
+      if (!condition) {
+        abort(text);
+      }
+    }
     var UTF8Decoder = typeof TextDecoder != "undefined" ? new TextDecoder("utf8") : void 0;
     function UTF8ArrayToString(heapOrArray, idx, maxBytesToRead) {
       var endIdx = idx + maxBytesToRead;
@@ -193,12 +204,13 @@ var HavokPhysics = (() => {
       Module["HEAP64"] = HEAP64 = new BigInt64Array(buf);
       Module["HEAPU64"] = HEAPU64 = new BigUint64Array(buf);
     }
-    Module["INITIAL_MEMORY"] || 16777216;
+    var INITIAL_MEMORY = Module["INITIAL_MEMORY"] || 16777216;
     var wasmTable;
     var __ATPRERUN__ = [];
     var __ATINIT__ = [];
     var __ATMAIN__ = [];
     var __ATPOSTRUN__ = [];
+    var runtimeInitialized = false;
     function keepRuntimeAlive() {
       return noExitRuntime;
     }
@@ -212,6 +224,7 @@ var HavokPhysics = (() => {
       callRuntimeCallbacks(__ATPRERUN__);
     }
     function initRuntime() {
+      runtimeInitialized = true;
       callRuntimeCallbacks(__ATINIT__);
     }
     function preMain() {
@@ -236,6 +249,7 @@ var HavokPhysics = (() => {
       __ATPOSTRUN__.unshift(cb);
     }
     var runDependencies = 0;
+    var runDependencyWatcher = null;
     var dependenciesFulfilled = null;
     function addRunDependency(id) {
       runDependencies++;
@@ -249,6 +263,10 @@ var HavokPhysics = (() => {
         Module["monitorRunDependencies"](runDependencies);
       }
       if (runDependencies == 0) {
+        if (runDependencyWatcher !== null) {
+          clearInterval(runDependencyWatcher);
+          runDependencyWatcher = null;
+        }
         if (dependenciesFulfilled) {
           var callback = dependenciesFulfilled;
           dependenciesFulfilled = null;
@@ -282,21 +300,23 @@ var HavokPhysics = (() => {
         wasmBinaryFile = locateFile(wasmBinaryFile);
       }
     } else {
-      wasmBinaryFile = new URL("/assets/HavokPhysics-Dtzwpp_L.wasm", import.meta.url).toString();
+      wasmBinaryFile = new URL("HavokPhysics.wasm", import.meta.url).toString();
     }
     function getBinary(file) {
       try {
-        if (file == wasmBinaryFile && wasmBinary) {
-          return new Uint8Array(wasmBinary);
+        if (file == wasmBinaryFile && wasmBinary2) {
+          return new Uint8Array(wasmBinary2);
         }
-        if (readBinary) ;
+        if (readBinary) {
+          return readBinary(file);
+        }
         throw "both async and sync fetching of the wasm failed";
       } catch (err2) {
         abort(err2);
       }
     }
     function getBinaryPromise() {
-      if (!wasmBinary && ENVIRONMENT_IS_WEB) {
+      if (!wasmBinary2 && (ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER)) {
         if (typeof fetch == "function") {
           return fetch(wasmBinaryFile, { credentials: "same-origin" }).then(function(response) {
             if (!response["ok"]) {
@@ -321,9 +341,9 @@ var HavokPhysics = (() => {
         updateGlobalBufferAndViews(wasmMemory.buffer);
         wasmTable = Module["asm"]["__indirect_function_table"];
         addOnInit(Module["asm"]["__wasm_call_ctors"]);
-        removeRunDependency();
+        removeRunDependency("wasm-instantiate");
       }
-      addRunDependency();
+      addRunDependency("wasm-instantiate");
       function receiveInstantiationResult(result) {
         receiveInstance(result["instance"]);
       }
@@ -338,7 +358,7 @@ var HavokPhysics = (() => {
         });
       }
       function instantiateAsync() {
-        if (!wasmBinary && typeof WebAssembly.instantiateStreaming == "function" && !isDataURI(wasmBinaryFile) && typeof fetch == "function") {
+        if (!wasmBinary2 && typeof WebAssembly.instantiateStreaming == "function" && !isDataURI(wasmBinaryFile) && typeof fetch == "function") {
           return fetch(wasmBinaryFile, { credentials: "same-origin" }).then(function(response) {
             var result = WebAssembly.instantiateStreaming(response, info);
             return result.then(receiveInstantiationResult, function(reason) {
@@ -363,6 +383,8 @@ var HavokPhysics = (() => {
       instantiateAsync().catch(readyPromiseReject);
       return {};
     }
+    var tempDouble;
+    var tempI64;
     function ExitStatus(status) {
       this.name = "ExitStatus";
       this.message = "Program terminated with exit(" + status + ")";
@@ -373,11 +395,35 @@ var HavokPhysics = (() => {
         callbacks.shift()(Module);
       }
     }
+    function demangle(func) {
+      return func;
+    }
+    function demangleAll(text) {
+      var regex = /\b_Z[\w\d_]+/g;
+      return text.replace(regex, function(x) {
+        var y = demangle(x);
+        return x === y ? x : y + " [" + x + "]";
+      });
+    }
     function handleException(e) {
       if (e instanceof ExitStatus || e == "unwind") {
         return EXITSTATUS;
       }
       quit_(1, e);
+    }
+    function jsStackTrace() {
+      var error = new Error();
+      if (!error.stack) {
+        try {
+          throw new Error();
+        } catch (e) {
+          error = e;
+        }
+        if (!error.stack) {
+          return "(no stack trace available)";
+        }
+      }
+      return error.stack.toString();
     }
     var tupleRegistrations = {};
     function runDestructors(destructors) {
@@ -894,6 +940,7 @@ var HavokPhysics = (() => {
       }
       if (returns) {
         invokerFnBody += "var ret = retType.fromWireType(rv);\nreturn ret;\n";
+      } else {
       }
       invokerFnBody += "}\n";
       args1.push(invokerFnBody);
@@ -974,6 +1021,9 @@ var HavokPhysics = (() => {
     }
     function __embind_register_integer(primitiveType, name, size, minRange, maxRange) {
       name = readLatin1String(name);
+      if (maxRange === -1) {
+        maxRange = 4294967295;
+      }
       var shift = getShiftFromSize(size);
       var fromWireType = (value) => value;
       if (minRange === 0) {
@@ -1359,6 +1409,14 @@ var HavokPhysics = (() => {
         buffer2.push(curr);
       }
     }
+    var SYSCALLS = { varargs: void 0, get: function() {
+      SYSCALLS.varargs += 4;
+      var ret = HEAP32[SYSCALLS.varargs - 4 >> 2];
+      return ret;
+    }, getStr: function(ptr) {
+      var ret = UTF8ToString(ptr);
+      return ret;
+    } };
     function _fd_write(fd, iov, iovcnt, pnum) {
       var num = 0;
       for (var i = 0; i < iovcnt; i++) {
@@ -1391,390 +1449,390 @@ var HavokPhysics = (() => {
     init_emval();
     UnboundTypeError = Module["UnboundTypeError"] = extendError(Error, "UnboundTypeError");
     var asmLibraryArg = { "_embind_finalize_value_array": __embind_finalize_value_array, "_embind_register_bigint": __embind_register_bigint, "_embind_register_bool": __embind_register_bool, "_embind_register_emval": __embind_register_emval, "_embind_register_enum": __embind_register_enum, "_embind_register_enum_value": __embind_register_enum_value, "_embind_register_float": __embind_register_float, "_embind_register_function": __embind_register_function, "_embind_register_integer": __embind_register_integer, "_embind_register_memory_view": __embind_register_memory_view, "_embind_register_std_string": __embind_register_std_string, "_embind_register_std_wstring": __embind_register_std_wstring, "_embind_register_value_array": __embind_register_value_array, "_embind_register_value_array_element": __embind_register_value_array_element, "_embind_register_void": __embind_register_void, "_emscripten_get_now_is_monotonic": __emscripten_get_now_is_monotonic, "_emval_call_void_method": __emval_call_void_method, "_emval_decref": __emval_decref, "_emval_get_method_caller": __emval_get_method_caller, "abort": _abort, "emscripten_date_now": _emscripten_date_now, "emscripten_get_heap_max": _emscripten_get_heap_max, "emscripten_get_now": _emscripten_get_now, "emscripten_memcpy_big": _emscripten_memcpy_big, "emscripten_resize_heap": _emscripten_resize_heap, "fd_write": _fd_write };
-    createWasm();
-    Module["___wasm_call_ctors"] = function() {
-      return (Module["___wasm_call_ctors"] = Module["asm"]["__wasm_call_ctors"]).apply(null, arguments);
+    var asm = createWasm();
+    var ___wasm_call_ctors = Module["___wasm_call_ctors"] = function() {
+      return (___wasm_call_ctors = Module["___wasm_call_ctors"] = Module["asm"]["__wasm_call_ctors"]).apply(null, arguments);
     };
-    Module["_HP_GetStatistics"] = function() {
-      return (Module["_HP_GetStatistics"] = Module["asm"]["HP_GetStatistics"]).apply(null, arguments);
+    var _HP_GetStatistics = Module["_HP_GetStatistics"] = function() {
+      return (_HP_GetStatistics = Module["_HP_GetStatistics"] = Module["asm"]["HP_GetStatistics"]).apply(null, arguments);
     };
-    Module["_HP_Shape_CreateSphere"] = function() {
-      return (Module["_HP_Shape_CreateSphere"] = Module["asm"]["HP_Shape_CreateSphere"]).apply(null, arguments);
+    var _HP_Shape_CreateSphere = Module["_HP_Shape_CreateSphere"] = function() {
+      return (_HP_Shape_CreateSphere = Module["_HP_Shape_CreateSphere"] = Module["asm"]["HP_Shape_CreateSphere"]).apply(null, arguments);
     };
-    Module["_HP_Shape_CreateCapsule"] = function() {
-      return (Module["_HP_Shape_CreateCapsule"] = Module["asm"]["HP_Shape_CreateCapsule"]).apply(null, arguments);
+    var _HP_Shape_CreateCapsule = Module["_HP_Shape_CreateCapsule"] = function() {
+      return (_HP_Shape_CreateCapsule = Module["_HP_Shape_CreateCapsule"] = Module["asm"]["HP_Shape_CreateCapsule"]).apply(null, arguments);
     };
-    Module["_HP_Shape_CreateCylinder"] = function() {
-      return (Module["_HP_Shape_CreateCylinder"] = Module["asm"]["HP_Shape_CreateCylinder"]).apply(null, arguments);
+    var _HP_Shape_CreateCylinder = Module["_HP_Shape_CreateCylinder"] = function() {
+      return (_HP_Shape_CreateCylinder = Module["_HP_Shape_CreateCylinder"] = Module["asm"]["HP_Shape_CreateCylinder"]).apply(null, arguments);
     };
-    Module["_HP_Shape_CreateBox"] = function() {
-      return (Module["_HP_Shape_CreateBox"] = Module["asm"]["HP_Shape_CreateBox"]).apply(null, arguments);
+    var _HP_Shape_CreateBox = Module["_HP_Shape_CreateBox"] = function() {
+      return (_HP_Shape_CreateBox = Module["_HP_Shape_CreateBox"] = Module["asm"]["HP_Shape_CreateBox"]).apply(null, arguments);
     };
-    Module["_HP_Shape_CreateConvexHull"] = function() {
-      return (Module["_HP_Shape_CreateConvexHull"] = Module["asm"]["HP_Shape_CreateConvexHull"]).apply(null, arguments);
+    var _HP_Shape_CreateConvexHull = Module["_HP_Shape_CreateConvexHull"] = function() {
+      return (_HP_Shape_CreateConvexHull = Module["_HP_Shape_CreateConvexHull"] = Module["asm"]["HP_Shape_CreateConvexHull"]).apply(null, arguments);
     };
-    Module["_HP_Shape_CreateMesh"] = function() {
-      return (Module["_HP_Shape_CreateMesh"] = Module["asm"]["HP_Shape_CreateMesh"]).apply(null, arguments);
+    var _HP_Shape_CreateMesh = Module["_HP_Shape_CreateMesh"] = function() {
+      return (_HP_Shape_CreateMesh = Module["_HP_Shape_CreateMesh"] = Module["asm"]["HP_Shape_CreateMesh"]).apply(null, arguments);
     };
-    Module["_HP_Shape_CreateHeightField"] = function() {
-      return (Module["_HP_Shape_CreateHeightField"] = Module["asm"]["HP_Shape_CreateHeightField"]).apply(null, arguments);
+    var _HP_Shape_CreateHeightField = Module["_HP_Shape_CreateHeightField"] = function() {
+      return (_HP_Shape_CreateHeightField = Module["_HP_Shape_CreateHeightField"] = Module["asm"]["HP_Shape_CreateHeightField"]).apply(null, arguments);
     };
-    Module["_HP_Shape_CreateContainer"] = function() {
-      return (Module["_HP_Shape_CreateContainer"] = Module["asm"]["HP_Shape_CreateContainer"]).apply(null, arguments);
+    var _HP_Shape_CreateContainer = Module["_HP_Shape_CreateContainer"] = function() {
+      return (_HP_Shape_CreateContainer = Module["_HP_Shape_CreateContainer"] = Module["asm"]["HP_Shape_CreateContainer"]).apply(null, arguments);
     };
-    Module["_HP_Shape_Release"] = function() {
-      return (Module["_HP_Shape_Release"] = Module["asm"]["HP_Shape_Release"]).apply(null, arguments);
+    var _HP_Shape_Release = Module["_HP_Shape_Release"] = function() {
+      return (_HP_Shape_Release = Module["_HP_Shape_Release"] = Module["asm"]["HP_Shape_Release"]).apply(null, arguments);
     };
-    Module["_HP_Shape_GetType"] = function() {
-      return (Module["_HP_Shape_GetType"] = Module["asm"]["HP_Shape_GetType"]).apply(null, arguments);
+    var _HP_Shape_GetType = Module["_HP_Shape_GetType"] = function() {
+      return (_HP_Shape_GetType = Module["_HP_Shape_GetType"] = Module["asm"]["HP_Shape_GetType"]).apply(null, arguments);
     };
-    Module["_HP_Shape_AddChild"] = function() {
-      return (Module["_HP_Shape_AddChild"] = Module["asm"]["HP_Shape_AddChild"]).apply(null, arguments);
+    var _HP_Shape_AddChild = Module["_HP_Shape_AddChild"] = function() {
+      return (_HP_Shape_AddChild = Module["_HP_Shape_AddChild"] = Module["asm"]["HP_Shape_AddChild"]).apply(null, arguments);
     };
-    Module["_HP_Shape_RemoveChild"] = function() {
-      return (Module["_HP_Shape_RemoveChild"] = Module["asm"]["HP_Shape_RemoveChild"]).apply(null, arguments);
+    var _HP_Shape_RemoveChild = Module["_HP_Shape_RemoveChild"] = function() {
+      return (_HP_Shape_RemoveChild = Module["_HP_Shape_RemoveChild"] = Module["asm"]["HP_Shape_RemoveChild"]).apply(null, arguments);
     };
-    Module["_HP_Shape_GetNumChildren"] = function() {
-      return (Module["_HP_Shape_GetNumChildren"] = Module["asm"]["HP_Shape_GetNumChildren"]).apply(null, arguments);
+    var _HP_Shape_GetNumChildren = Module["_HP_Shape_GetNumChildren"] = function() {
+      return (_HP_Shape_GetNumChildren = Module["_HP_Shape_GetNumChildren"] = Module["asm"]["HP_Shape_GetNumChildren"]).apply(null, arguments);
     };
-    Module["_HP_Shape_SetChildQSTransform"] = function() {
-      return (Module["_HP_Shape_SetChildQSTransform"] = Module["asm"]["HP_Shape_SetChildQSTransform"]).apply(null, arguments);
+    var _HP_Shape_SetChildQSTransform = Module["_HP_Shape_SetChildQSTransform"] = function() {
+      return (_HP_Shape_SetChildQSTransform = Module["_HP_Shape_SetChildQSTransform"] = Module["asm"]["HP_Shape_SetChildQSTransform"]).apply(null, arguments);
     };
-    Module["_HP_Shape_GetChildQSTransform"] = function() {
-      return (Module["_HP_Shape_GetChildQSTransform"] = Module["asm"]["HP_Shape_GetChildQSTransform"]).apply(null, arguments);
+    var _HP_Shape_GetChildQSTransform = Module["_HP_Shape_GetChildQSTransform"] = function() {
+      return (_HP_Shape_GetChildQSTransform = Module["_HP_Shape_GetChildQSTransform"] = Module["asm"]["HP_Shape_GetChildQSTransform"]).apply(null, arguments);
     };
-    Module["_HP_Shape_SetFilterInfo"] = function() {
-      return (Module["_HP_Shape_SetFilterInfo"] = Module["asm"]["HP_Shape_SetFilterInfo"]).apply(null, arguments);
+    var _HP_Shape_SetFilterInfo = Module["_HP_Shape_SetFilterInfo"] = function() {
+      return (_HP_Shape_SetFilterInfo = Module["_HP_Shape_SetFilterInfo"] = Module["asm"]["HP_Shape_SetFilterInfo"]).apply(null, arguments);
     };
-    Module["_HP_Shape_GetFilterInfo"] = function() {
-      return (Module["_HP_Shape_GetFilterInfo"] = Module["asm"]["HP_Shape_GetFilterInfo"]).apply(null, arguments);
+    var _HP_Shape_GetFilterInfo = Module["_HP_Shape_GetFilterInfo"] = function() {
+      return (_HP_Shape_GetFilterInfo = Module["_HP_Shape_GetFilterInfo"] = Module["asm"]["HP_Shape_GetFilterInfo"]).apply(null, arguments);
     };
-    Module["_HP_Shape_SetMaterial"] = function() {
-      return (Module["_HP_Shape_SetMaterial"] = Module["asm"]["HP_Shape_SetMaterial"]).apply(null, arguments);
+    var _HP_Shape_SetMaterial = Module["_HP_Shape_SetMaterial"] = function() {
+      return (_HP_Shape_SetMaterial = Module["_HP_Shape_SetMaterial"] = Module["asm"]["HP_Shape_SetMaterial"]).apply(null, arguments);
     };
-    Module["_HP_Shape_GetMaterial"] = function() {
-      return (Module["_HP_Shape_GetMaterial"] = Module["asm"]["HP_Shape_GetMaterial"]).apply(null, arguments);
+    var _HP_Shape_GetMaterial = Module["_HP_Shape_GetMaterial"] = function() {
+      return (_HP_Shape_GetMaterial = Module["_HP_Shape_GetMaterial"] = Module["asm"]["HP_Shape_GetMaterial"]).apply(null, arguments);
     };
-    Module["_HP_Shape_SetDensity"] = function() {
-      return (Module["_HP_Shape_SetDensity"] = Module["asm"]["HP_Shape_SetDensity"]).apply(null, arguments);
+    var _HP_Shape_SetDensity = Module["_HP_Shape_SetDensity"] = function() {
+      return (_HP_Shape_SetDensity = Module["_HP_Shape_SetDensity"] = Module["asm"]["HP_Shape_SetDensity"]).apply(null, arguments);
     };
-    Module["_HP_Shape_GetDensity"] = function() {
-      return (Module["_HP_Shape_GetDensity"] = Module["asm"]["HP_Shape_GetDensity"]).apply(null, arguments);
+    var _HP_Shape_GetDensity = Module["_HP_Shape_GetDensity"] = function() {
+      return (_HP_Shape_GetDensity = Module["_HP_Shape_GetDensity"] = Module["asm"]["HP_Shape_GetDensity"]).apply(null, arguments);
     };
-    Module["_HP_Shape_GetBoundingBox"] = function() {
-      return (Module["_HP_Shape_GetBoundingBox"] = Module["asm"]["HP_Shape_GetBoundingBox"]).apply(null, arguments);
+    var _HP_Shape_GetBoundingBox = Module["_HP_Shape_GetBoundingBox"] = function() {
+      return (_HP_Shape_GetBoundingBox = Module["_HP_Shape_GetBoundingBox"] = Module["asm"]["HP_Shape_GetBoundingBox"]).apply(null, arguments);
     };
-    Module["_HP_Shape_CastRay"] = function() {
-      return (Module["_HP_Shape_CastRay"] = Module["asm"]["HP_Shape_CastRay"]).apply(null, arguments);
+    var _HP_Shape_CastRay = Module["_HP_Shape_CastRay"] = function() {
+      return (_HP_Shape_CastRay = Module["_HP_Shape_CastRay"] = Module["asm"]["HP_Shape_CastRay"]).apply(null, arguments);
     };
-    Module["_HP_Shape_BuildMassProperties"] = function() {
-      return (Module["_HP_Shape_BuildMassProperties"] = Module["asm"]["HP_Shape_BuildMassProperties"]).apply(null, arguments);
+    var _HP_Shape_BuildMassProperties = Module["_HP_Shape_BuildMassProperties"] = function() {
+      return (_HP_Shape_BuildMassProperties = Module["_HP_Shape_BuildMassProperties"] = Module["asm"]["HP_Shape_BuildMassProperties"]).apply(null, arguments);
     };
-    Module["_HP_ShapePathIterator_GetNext"] = function() {
-      return (Module["_HP_ShapePathIterator_GetNext"] = Module["asm"]["HP_ShapePathIterator_GetNext"]).apply(null, arguments);
+    var _HP_ShapePathIterator_GetNext = Module["_HP_ShapePathIterator_GetNext"] = function() {
+      return (_HP_ShapePathIterator_GetNext = Module["_HP_ShapePathIterator_GetNext"] = Module["asm"]["HP_ShapePathIterator_GetNext"]).apply(null, arguments);
     };
-    Module["_HP_Shape_SetTrigger"] = function() {
-      return (Module["_HP_Shape_SetTrigger"] = Module["asm"]["HP_Shape_SetTrigger"]).apply(null, arguments);
+    var _HP_Shape_SetTrigger = Module["_HP_Shape_SetTrigger"] = function() {
+      return (_HP_Shape_SetTrigger = Module["_HP_Shape_SetTrigger"] = Module["asm"]["HP_Shape_SetTrigger"]).apply(null, arguments);
     };
-    Module["_HP_Shape_CreateDebugDisplayGeometry"] = function() {
-      return (Module["_HP_Shape_CreateDebugDisplayGeometry"] = Module["asm"]["HP_Shape_CreateDebugDisplayGeometry"]).apply(null, arguments);
+    var _HP_Shape_CreateDebugDisplayGeometry = Module["_HP_Shape_CreateDebugDisplayGeometry"] = function() {
+      return (_HP_Shape_CreateDebugDisplayGeometry = Module["_HP_Shape_CreateDebugDisplayGeometry"] = Module["asm"]["HP_Shape_CreateDebugDisplayGeometry"]).apply(null, arguments);
     };
-    Module["_HP_DebugGeometry_GetInfo"] = function() {
-      return (Module["_HP_DebugGeometry_GetInfo"] = Module["asm"]["HP_DebugGeometry_GetInfo"]).apply(null, arguments);
+    var _HP_DebugGeometry_GetInfo = Module["_HP_DebugGeometry_GetInfo"] = function() {
+      return (_HP_DebugGeometry_GetInfo = Module["_HP_DebugGeometry_GetInfo"] = Module["asm"]["HP_DebugGeometry_GetInfo"]).apply(null, arguments);
     };
-    Module["_HP_DebugGeometry_Release"] = function() {
-      return (Module["_HP_DebugGeometry_Release"] = Module["asm"]["HP_DebugGeometry_Release"]).apply(null, arguments);
+    var _HP_DebugGeometry_Release = Module["_HP_DebugGeometry_Release"] = function() {
+      return (_HP_DebugGeometry_Release = Module["_HP_DebugGeometry_Release"] = Module["asm"]["HP_DebugGeometry_Release"]).apply(null, arguments);
     };
-    Module["_HP_Body_Create"] = function() {
-      return (Module["_HP_Body_Create"] = Module["asm"]["HP_Body_Create"]).apply(null, arguments);
+    var _HP_Body_Create = Module["_HP_Body_Create"] = function() {
+      return (_HP_Body_Create = Module["_HP_Body_Create"] = Module["asm"]["HP_Body_Create"]).apply(null, arguments);
     };
-    Module["_HP_Body_Release"] = function() {
-      return (Module["_HP_Body_Release"] = Module["asm"]["HP_Body_Release"]).apply(null, arguments);
+    var _HP_Body_Release = Module["_HP_Body_Release"] = function() {
+      return (_HP_Body_Release = Module["_HP_Body_Release"] = Module["asm"]["HP_Body_Release"]).apply(null, arguments);
     };
-    Module["_HP_Body_SetShape"] = function() {
-      return (Module["_HP_Body_SetShape"] = Module["asm"]["HP_Body_SetShape"]).apply(null, arguments);
+    var _HP_Body_SetShape = Module["_HP_Body_SetShape"] = function() {
+      return (_HP_Body_SetShape = Module["_HP_Body_SetShape"] = Module["asm"]["HP_Body_SetShape"]).apply(null, arguments);
     };
-    Module["_HP_Body_GetShape"] = function() {
-      return (Module["_HP_Body_GetShape"] = Module["asm"]["HP_Body_GetShape"]).apply(null, arguments);
+    var _HP_Body_GetShape = Module["_HP_Body_GetShape"] = function() {
+      return (_HP_Body_GetShape = Module["_HP_Body_GetShape"] = Module["asm"]["HP_Body_GetShape"]).apply(null, arguments);
     };
-    Module["_HP_Body_SetMotionType"] = function() {
-      return (Module["_HP_Body_SetMotionType"] = Module["asm"]["HP_Body_SetMotionType"]).apply(null, arguments);
+    var _HP_Body_SetMotionType = Module["_HP_Body_SetMotionType"] = function() {
+      return (_HP_Body_SetMotionType = Module["_HP_Body_SetMotionType"] = Module["asm"]["HP_Body_SetMotionType"]).apply(null, arguments);
     };
-    Module["_HP_Body_GetMotionType"] = function() {
-      return (Module["_HP_Body_GetMotionType"] = Module["asm"]["HP_Body_GetMotionType"]).apply(null, arguments);
+    var _HP_Body_GetMotionType = Module["_HP_Body_GetMotionType"] = function() {
+      return (_HP_Body_GetMotionType = Module["_HP_Body_GetMotionType"] = Module["asm"]["HP_Body_GetMotionType"]).apply(null, arguments);
     };
-    Module["_HP_Body_SetEventMask"] = function() {
-      return (Module["_HP_Body_SetEventMask"] = Module["asm"]["HP_Body_SetEventMask"]).apply(null, arguments);
+    var _HP_Body_SetEventMask = Module["_HP_Body_SetEventMask"] = function() {
+      return (_HP_Body_SetEventMask = Module["_HP_Body_SetEventMask"] = Module["asm"]["HP_Body_SetEventMask"]).apply(null, arguments);
     };
-    Module["_HP_Body_GetEventMask"] = function() {
-      return (Module["_HP_Body_GetEventMask"] = Module["asm"]["HP_Body_GetEventMask"]).apply(null, arguments);
+    var _HP_Body_GetEventMask = Module["_HP_Body_GetEventMask"] = function() {
+      return (_HP_Body_GetEventMask = Module["_HP_Body_GetEventMask"] = Module["asm"]["HP_Body_GetEventMask"]).apply(null, arguments);
     };
-    Module["_HP_Body_SetMassProperties"] = function() {
-      return (Module["_HP_Body_SetMassProperties"] = Module["asm"]["HP_Body_SetMassProperties"]).apply(null, arguments);
+    var _HP_Body_SetMassProperties = Module["_HP_Body_SetMassProperties"] = function() {
+      return (_HP_Body_SetMassProperties = Module["_HP_Body_SetMassProperties"] = Module["asm"]["HP_Body_SetMassProperties"]).apply(null, arguments);
     };
-    Module["_HP_Body_GetMassProperties"] = function() {
-      return (Module["_HP_Body_GetMassProperties"] = Module["asm"]["HP_Body_GetMassProperties"]).apply(null, arguments);
+    var _HP_Body_GetMassProperties = Module["_HP_Body_GetMassProperties"] = function() {
+      return (_HP_Body_GetMassProperties = Module["_HP_Body_GetMassProperties"] = Module["asm"]["HP_Body_GetMassProperties"]).apply(null, arguments);
     };
-    Module["_HP_Body_SetLinearDamping"] = function() {
-      return (Module["_HP_Body_SetLinearDamping"] = Module["asm"]["HP_Body_SetLinearDamping"]).apply(null, arguments);
+    var _HP_Body_SetLinearDamping = Module["_HP_Body_SetLinearDamping"] = function() {
+      return (_HP_Body_SetLinearDamping = Module["_HP_Body_SetLinearDamping"] = Module["asm"]["HP_Body_SetLinearDamping"]).apply(null, arguments);
     };
-    Module["_HP_Body_GetLinearDamping"] = function() {
-      return (Module["_HP_Body_GetLinearDamping"] = Module["asm"]["HP_Body_GetLinearDamping"]).apply(null, arguments);
+    var _HP_Body_GetLinearDamping = Module["_HP_Body_GetLinearDamping"] = function() {
+      return (_HP_Body_GetLinearDamping = Module["_HP_Body_GetLinearDamping"] = Module["asm"]["HP_Body_GetLinearDamping"]).apply(null, arguments);
     };
-    Module["_HP_Body_SetAngularDamping"] = function() {
-      return (Module["_HP_Body_SetAngularDamping"] = Module["asm"]["HP_Body_SetAngularDamping"]).apply(null, arguments);
+    var _HP_Body_SetAngularDamping = Module["_HP_Body_SetAngularDamping"] = function() {
+      return (_HP_Body_SetAngularDamping = Module["_HP_Body_SetAngularDamping"] = Module["asm"]["HP_Body_SetAngularDamping"]).apply(null, arguments);
     };
-    Module["_HP_Body_GetAngularDamping"] = function() {
-      return (Module["_HP_Body_GetAngularDamping"] = Module["asm"]["HP_Body_GetAngularDamping"]).apply(null, arguments);
+    var _HP_Body_GetAngularDamping = Module["_HP_Body_GetAngularDamping"] = function() {
+      return (_HP_Body_GetAngularDamping = Module["_HP_Body_GetAngularDamping"] = Module["asm"]["HP_Body_GetAngularDamping"]).apply(null, arguments);
     };
-    Module["_HP_Body_SetGravityFactor"] = function() {
-      return (Module["_HP_Body_SetGravityFactor"] = Module["asm"]["HP_Body_SetGravityFactor"]).apply(null, arguments);
+    var _HP_Body_SetGravityFactor = Module["_HP_Body_SetGravityFactor"] = function() {
+      return (_HP_Body_SetGravityFactor = Module["_HP_Body_SetGravityFactor"] = Module["asm"]["HP_Body_SetGravityFactor"]).apply(null, arguments);
     };
-    Module["_HP_Body_GetGravityFactor"] = function() {
-      return (Module["_HP_Body_GetGravityFactor"] = Module["asm"]["HP_Body_GetGravityFactor"]).apply(null, arguments);
+    var _HP_Body_GetGravityFactor = Module["_HP_Body_GetGravityFactor"] = function() {
+      return (_HP_Body_GetGravityFactor = Module["_HP_Body_GetGravityFactor"] = Module["asm"]["HP_Body_GetGravityFactor"]).apply(null, arguments);
     };
-    Module["_HP_Body_GetWorld"] = function() {
-      return (Module["_HP_Body_GetWorld"] = Module["asm"]["HP_Body_GetWorld"]).apply(null, arguments);
+    var _HP_Body_GetWorld = Module["_HP_Body_GetWorld"] = function() {
+      return (_HP_Body_GetWorld = Module["_HP_Body_GetWorld"] = Module["asm"]["HP_Body_GetWorld"]).apply(null, arguments);
     };
-    Module["_HP_Body_SetPosition"] = function() {
-      return (Module["_HP_Body_SetPosition"] = Module["asm"]["HP_Body_SetPosition"]).apply(null, arguments);
+    var _HP_Body_SetPosition = Module["_HP_Body_SetPosition"] = function() {
+      return (_HP_Body_SetPosition = Module["_HP_Body_SetPosition"] = Module["asm"]["HP_Body_SetPosition"]).apply(null, arguments);
     };
-    Module["_HP_Body_GetPosition"] = function() {
-      return (Module["_HP_Body_GetPosition"] = Module["asm"]["HP_Body_GetPosition"]).apply(null, arguments);
+    var _HP_Body_GetPosition = Module["_HP_Body_GetPosition"] = function() {
+      return (_HP_Body_GetPosition = Module["_HP_Body_GetPosition"] = Module["asm"]["HP_Body_GetPosition"]).apply(null, arguments);
     };
-    Module["_HP_Body_SetOrientation"] = function() {
-      return (Module["_HP_Body_SetOrientation"] = Module["asm"]["HP_Body_SetOrientation"]).apply(null, arguments);
+    var _HP_Body_SetOrientation = Module["_HP_Body_SetOrientation"] = function() {
+      return (_HP_Body_SetOrientation = Module["_HP_Body_SetOrientation"] = Module["asm"]["HP_Body_SetOrientation"]).apply(null, arguments);
     };
-    Module["_HP_Body_GetOrientation"] = function() {
-      return (Module["_HP_Body_GetOrientation"] = Module["asm"]["HP_Body_GetOrientation"]).apply(null, arguments);
+    var _HP_Body_GetOrientation = Module["_HP_Body_GetOrientation"] = function() {
+      return (_HP_Body_GetOrientation = Module["_HP_Body_GetOrientation"] = Module["asm"]["HP_Body_GetOrientation"]).apply(null, arguments);
     };
-    Module["_HP_Body_SetQTransform"] = function() {
-      return (Module["_HP_Body_SetQTransform"] = Module["asm"]["HP_Body_SetQTransform"]).apply(null, arguments);
+    var _HP_Body_SetQTransform = Module["_HP_Body_SetQTransform"] = function() {
+      return (_HP_Body_SetQTransform = Module["_HP_Body_SetQTransform"] = Module["asm"]["HP_Body_SetQTransform"]).apply(null, arguments);
     };
-    Module["_HP_Body_GetWorldTransformOffset"] = function() {
-      return (Module["_HP_Body_GetWorldTransformOffset"] = Module["asm"]["HP_Body_GetWorldTransformOffset"]).apply(null, arguments);
+    var _HP_Body_GetWorldTransformOffset = Module["_HP_Body_GetWorldTransformOffset"] = function() {
+      return (_HP_Body_GetWorldTransformOffset = Module["_HP_Body_GetWorldTransformOffset"] = Module["asm"]["HP_Body_GetWorldTransformOffset"]).apply(null, arguments);
     };
-    Module["_HP_Body_GetQTransform"] = function() {
-      return (Module["_HP_Body_GetQTransform"] = Module["asm"]["HP_Body_GetQTransform"]).apply(null, arguments);
+    var _HP_Body_GetQTransform = Module["_HP_Body_GetQTransform"] = function() {
+      return (_HP_Body_GetQTransform = Module["_HP_Body_GetQTransform"] = Module["asm"]["HP_Body_GetQTransform"]).apply(null, arguments);
     };
-    Module["_HP_Body_SetLinearVelocity"] = function() {
-      return (Module["_HP_Body_SetLinearVelocity"] = Module["asm"]["HP_Body_SetLinearVelocity"]).apply(null, arguments);
+    var _HP_Body_SetLinearVelocity = Module["_HP_Body_SetLinearVelocity"] = function() {
+      return (_HP_Body_SetLinearVelocity = Module["_HP_Body_SetLinearVelocity"] = Module["asm"]["HP_Body_SetLinearVelocity"]).apply(null, arguments);
     };
-    Module["_HP_Body_GetLinearVelocity"] = function() {
-      return (Module["_HP_Body_GetLinearVelocity"] = Module["asm"]["HP_Body_GetLinearVelocity"]).apply(null, arguments);
+    var _HP_Body_GetLinearVelocity = Module["_HP_Body_GetLinearVelocity"] = function() {
+      return (_HP_Body_GetLinearVelocity = Module["_HP_Body_GetLinearVelocity"] = Module["asm"]["HP_Body_GetLinearVelocity"]).apply(null, arguments);
     };
-    Module["_HP_Body_SetAngularVelocity"] = function() {
-      return (Module["_HP_Body_SetAngularVelocity"] = Module["asm"]["HP_Body_SetAngularVelocity"]).apply(null, arguments);
+    var _HP_Body_SetAngularVelocity = Module["_HP_Body_SetAngularVelocity"] = function() {
+      return (_HP_Body_SetAngularVelocity = Module["_HP_Body_SetAngularVelocity"] = Module["asm"]["HP_Body_SetAngularVelocity"]).apply(null, arguments);
     };
-    Module["_HP_Body_GetAngularVelocity"] = function() {
-      return (Module["_HP_Body_GetAngularVelocity"] = Module["asm"]["HP_Body_GetAngularVelocity"]).apply(null, arguments);
+    var _HP_Body_GetAngularVelocity = Module["_HP_Body_GetAngularVelocity"] = function() {
+      return (_HP_Body_GetAngularVelocity = Module["_HP_Body_GetAngularVelocity"] = Module["asm"]["HP_Body_GetAngularVelocity"]).apply(null, arguments);
     };
-    Module["_HP_Body_ApplyImpulse"] = function() {
-      return (Module["_HP_Body_ApplyImpulse"] = Module["asm"]["HP_Body_ApplyImpulse"]).apply(null, arguments);
+    var _HP_Body_ApplyImpulse = Module["_HP_Body_ApplyImpulse"] = function() {
+      return (_HP_Body_ApplyImpulse = Module["_HP_Body_ApplyImpulse"] = Module["asm"]["HP_Body_ApplyImpulse"]).apply(null, arguments);
     };
-    Module["_HP_Body_ApplyAngularImpulse"] = function() {
-      return (Module["_HP_Body_ApplyAngularImpulse"] = Module["asm"]["HP_Body_ApplyAngularImpulse"]).apply(null, arguments);
+    var _HP_Body_ApplyAngularImpulse = Module["_HP_Body_ApplyAngularImpulse"] = function() {
+      return (_HP_Body_ApplyAngularImpulse = Module["_HP_Body_ApplyAngularImpulse"] = Module["asm"]["HP_Body_ApplyAngularImpulse"]).apply(null, arguments);
     };
-    Module["_HP_Body_SetTargetQTransform"] = function() {
-      return (Module["_HP_Body_SetTargetQTransform"] = Module["asm"]["HP_Body_SetTargetQTransform"]).apply(null, arguments);
+    var _HP_Body_SetTargetQTransform = Module["_HP_Body_SetTargetQTransform"] = function() {
+      return (_HP_Body_SetTargetQTransform = Module["_HP_Body_SetTargetQTransform"] = Module["asm"]["HP_Body_SetTargetQTransform"]).apply(null, arguments);
     };
-    Module["_HP_Body_SetActivationState"] = function() {
-      return (Module["_HP_Body_SetActivationState"] = Module["asm"]["HP_Body_SetActivationState"]).apply(null, arguments);
+    var _HP_Body_SetActivationState = Module["_HP_Body_SetActivationState"] = function() {
+      return (_HP_Body_SetActivationState = Module["_HP_Body_SetActivationState"] = Module["asm"]["HP_Body_SetActivationState"]).apply(null, arguments);
     };
-    Module["_HP_Body_GetActivationState"] = function() {
-      return (Module["_HP_Body_GetActivationState"] = Module["asm"]["HP_Body_GetActivationState"]).apply(null, arguments);
+    var _HP_Body_GetActivationState = Module["_HP_Body_GetActivationState"] = function() {
+      return (_HP_Body_GetActivationState = Module["_HP_Body_GetActivationState"] = Module["asm"]["HP_Body_GetActivationState"]).apply(null, arguments);
     };
-    Module["_HP_Body_SetActivationControl"] = function() {
-      return (Module["_HP_Body_SetActivationControl"] = Module["asm"]["HP_Body_SetActivationControl"]).apply(null, arguments);
+    var _HP_Body_SetActivationControl = Module["_HP_Body_SetActivationControl"] = function() {
+      return (_HP_Body_SetActivationControl = Module["_HP_Body_SetActivationControl"] = Module["asm"]["HP_Body_SetActivationControl"]).apply(null, arguments);
     };
-    Module["_HP_Body_SetActivationPriority"] = function() {
-      return (Module["_HP_Body_SetActivationPriority"] = Module["asm"]["HP_Body_SetActivationPriority"]).apply(null, arguments);
+    var _HP_Body_SetActivationPriority = Module["_HP_Body_SetActivationPriority"] = function() {
+      return (_HP_Body_SetActivationPriority = Module["_HP_Body_SetActivationPriority"] = Module["asm"]["HP_Body_SetActivationPriority"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_Create"] = function() {
-      return (Module["_HP_Constraint_Create"] = Module["asm"]["HP_Constraint_Create"]).apply(null, arguments);
+    var _HP_Constraint_Create = Module["_HP_Constraint_Create"] = function() {
+      return (_HP_Constraint_Create = Module["_HP_Constraint_Create"] = Module["asm"]["HP_Constraint_Create"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_Release"] = function() {
-      return (Module["_HP_Constraint_Release"] = Module["asm"]["HP_Constraint_Release"]).apply(null, arguments);
+    var _HP_Constraint_Release = Module["_HP_Constraint_Release"] = function() {
+      return (_HP_Constraint_Release = Module["_HP_Constraint_Release"] = Module["asm"]["HP_Constraint_Release"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_SetParentBody"] = function() {
-      return (Module["_HP_Constraint_SetParentBody"] = Module["asm"]["HP_Constraint_SetParentBody"]).apply(null, arguments);
+    var _HP_Constraint_SetParentBody = Module["_HP_Constraint_SetParentBody"] = function() {
+      return (_HP_Constraint_SetParentBody = Module["_HP_Constraint_SetParentBody"] = Module["asm"]["HP_Constraint_SetParentBody"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_GetParentBody"] = function() {
-      return (Module["_HP_Constraint_GetParentBody"] = Module["asm"]["HP_Constraint_GetParentBody"]).apply(null, arguments);
+    var _HP_Constraint_GetParentBody = Module["_HP_Constraint_GetParentBody"] = function() {
+      return (_HP_Constraint_GetParentBody = Module["_HP_Constraint_GetParentBody"] = Module["asm"]["HP_Constraint_GetParentBody"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_SetChildBody"] = function() {
-      return (Module["_HP_Constraint_SetChildBody"] = Module["asm"]["HP_Constraint_SetChildBody"]).apply(null, arguments);
+    var _HP_Constraint_SetChildBody = Module["_HP_Constraint_SetChildBody"] = function() {
+      return (_HP_Constraint_SetChildBody = Module["_HP_Constraint_SetChildBody"] = Module["asm"]["HP_Constraint_SetChildBody"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_GetChildBody"] = function() {
-      return (Module["_HP_Constraint_GetChildBody"] = Module["asm"]["HP_Constraint_GetChildBody"]).apply(null, arguments);
+    var _HP_Constraint_GetChildBody = Module["_HP_Constraint_GetChildBody"] = function() {
+      return (_HP_Constraint_GetChildBody = Module["_HP_Constraint_GetChildBody"] = Module["asm"]["HP_Constraint_GetChildBody"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_SetAnchorInParent"] = function() {
-      return (Module["_HP_Constraint_SetAnchorInParent"] = Module["asm"]["HP_Constraint_SetAnchorInParent"]).apply(null, arguments);
+    var _HP_Constraint_SetAnchorInParent = Module["_HP_Constraint_SetAnchorInParent"] = function() {
+      return (_HP_Constraint_SetAnchorInParent = Module["_HP_Constraint_SetAnchorInParent"] = Module["asm"]["HP_Constraint_SetAnchorInParent"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_SetAnchorInChild"] = function() {
-      return (Module["_HP_Constraint_SetAnchorInChild"] = Module["asm"]["HP_Constraint_SetAnchorInChild"]).apply(null, arguments);
+    var _HP_Constraint_SetAnchorInChild = Module["_HP_Constraint_SetAnchorInChild"] = function() {
+      return (_HP_Constraint_SetAnchorInChild = Module["_HP_Constraint_SetAnchorInChild"] = Module["asm"]["HP_Constraint_SetAnchorInChild"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_SetCollisionsEnabled"] = function() {
-      return (Module["_HP_Constraint_SetCollisionsEnabled"] = Module["asm"]["HP_Constraint_SetCollisionsEnabled"]).apply(null, arguments);
+    var _HP_Constraint_SetCollisionsEnabled = Module["_HP_Constraint_SetCollisionsEnabled"] = function() {
+      return (_HP_Constraint_SetCollisionsEnabled = Module["_HP_Constraint_SetCollisionsEnabled"] = Module["asm"]["HP_Constraint_SetCollisionsEnabled"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_GetCollisionsEnabled"] = function() {
-      return (Module["_HP_Constraint_GetCollisionsEnabled"] = Module["asm"]["HP_Constraint_GetCollisionsEnabled"]).apply(null, arguments);
+    var _HP_Constraint_GetCollisionsEnabled = Module["_HP_Constraint_GetCollisionsEnabled"] = function() {
+      return (_HP_Constraint_GetCollisionsEnabled = Module["_HP_Constraint_GetCollisionsEnabled"] = Module["asm"]["HP_Constraint_GetCollisionsEnabled"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_SetEnabled"] = function() {
-      return (Module["_HP_Constraint_SetEnabled"] = Module["asm"]["HP_Constraint_SetEnabled"]).apply(null, arguments);
+    var _HP_Constraint_SetEnabled = Module["_HP_Constraint_SetEnabled"] = function() {
+      return (_HP_Constraint_SetEnabled = Module["_HP_Constraint_SetEnabled"] = Module["asm"]["HP_Constraint_SetEnabled"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_GetEnabled"] = function() {
-      return (Module["_HP_Constraint_GetEnabled"] = Module["asm"]["HP_Constraint_GetEnabled"]).apply(null, arguments);
+    var _HP_Constraint_GetEnabled = Module["_HP_Constraint_GetEnabled"] = function() {
+      return (_HP_Constraint_GetEnabled = Module["_HP_Constraint_GetEnabled"] = Module["asm"]["HP_Constraint_GetEnabled"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_SetAxisMinLimit"] = function() {
-      return (Module["_HP_Constraint_SetAxisMinLimit"] = Module["asm"]["HP_Constraint_SetAxisMinLimit"]).apply(null, arguments);
+    var _HP_Constraint_SetAxisMinLimit = Module["_HP_Constraint_SetAxisMinLimit"] = function() {
+      return (_HP_Constraint_SetAxisMinLimit = Module["_HP_Constraint_SetAxisMinLimit"] = Module["asm"]["HP_Constraint_SetAxisMinLimit"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_GetAxisMinLimit"] = function() {
-      return (Module["_HP_Constraint_GetAxisMinLimit"] = Module["asm"]["HP_Constraint_GetAxisMinLimit"]).apply(null, arguments);
+    var _HP_Constraint_GetAxisMinLimit = Module["_HP_Constraint_GetAxisMinLimit"] = function() {
+      return (_HP_Constraint_GetAxisMinLimit = Module["_HP_Constraint_GetAxisMinLimit"] = Module["asm"]["HP_Constraint_GetAxisMinLimit"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_SetAxisMaxLimit"] = function() {
-      return (Module["_HP_Constraint_SetAxisMaxLimit"] = Module["asm"]["HP_Constraint_SetAxisMaxLimit"]).apply(null, arguments);
+    var _HP_Constraint_SetAxisMaxLimit = Module["_HP_Constraint_SetAxisMaxLimit"] = function() {
+      return (_HP_Constraint_SetAxisMaxLimit = Module["_HP_Constraint_SetAxisMaxLimit"] = Module["asm"]["HP_Constraint_SetAxisMaxLimit"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_GetAxisMaxLimit"] = function() {
-      return (Module["_HP_Constraint_GetAxisMaxLimit"] = Module["asm"]["HP_Constraint_GetAxisMaxLimit"]).apply(null, arguments);
+    var _HP_Constraint_GetAxisMaxLimit = Module["_HP_Constraint_GetAxisMaxLimit"] = function() {
+      return (_HP_Constraint_GetAxisMaxLimit = Module["_HP_Constraint_GetAxisMaxLimit"] = Module["asm"]["HP_Constraint_GetAxisMaxLimit"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_GetAxisMode"] = function() {
-      return (Module["_HP_Constraint_GetAxisMode"] = Module["asm"]["HP_Constraint_GetAxisMode"]).apply(null, arguments);
+    var _HP_Constraint_GetAxisMode = Module["_HP_Constraint_GetAxisMode"] = function() {
+      return (_HP_Constraint_GetAxisMode = Module["_HP_Constraint_GetAxisMode"] = Module["asm"]["HP_Constraint_GetAxisMode"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_SetAxisMode"] = function() {
-      return (Module["_HP_Constraint_SetAxisMode"] = Module["asm"]["HP_Constraint_SetAxisMode"]).apply(null, arguments);
+    var _HP_Constraint_SetAxisMode = Module["_HP_Constraint_SetAxisMode"] = function() {
+      return (_HP_Constraint_SetAxisMode = Module["_HP_Constraint_SetAxisMode"] = Module["asm"]["HP_Constraint_SetAxisMode"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_SetAxisFriction"] = function() {
-      return (Module["_HP_Constraint_SetAxisFriction"] = Module["asm"]["HP_Constraint_SetAxisFriction"]).apply(null, arguments);
+    var _HP_Constraint_SetAxisFriction = Module["_HP_Constraint_SetAxisFriction"] = function() {
+      return (_HP_Constraint_SetAxisFriction = Module["_HP_Constraint_SetAxisFriction"] = Module["asm"]["HP_Constraint_SetAxisFriction"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_GetAxisFriction"] = function() {
-      return (Module["_HP_Constraint_GetAxisFriction"] = Module["asm"]["HP_Constraint_GetAxisFriction"]).apply(null, arguments);
+    var _HP_Constraint_GetAxisFriction = Module["_HP_Constraint_GetAxisFriction"] = function() {
+      return (_HP_Constraint_GetAxisFriction = Module["_HP_Constraint_GetAxisFriction"] = Module["asm"]["HP_Constraint_GetAxisFriction"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_SetAxisMotorType"] = function() {
-      return (Module["_HP_Constraint_SetAxisMotorType"] = Module["asm"]["HP_Constraint_SetAxisMotorType"]).apply(null, arguments);
+    var _HP_Constraint_SetAxisMotorType = Module["_HP_Constraint_SetAxisMotorType"] = function() {
+      return (_HP_Constraint_SetAxisMotorType = Module["_HP_Constraint_SetAxisMotorType"] = Module["asm"]["HP_Constraint_SetAxisMotorType"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_GetAxisMotorType"] = function() {
-      return (Module["_HP_Constraint_GetAxisMotorType"] = Module["asm"]["HP_Constraint_GetAxisMotorType"]).apply(null, arguments);
+    var _HP_Constraint_GetAxisMotorType = Module["_HP_Constraint_GetAxisMotorType"] = function() {
+      return (_HP_Constraint_GetAxisMotorType = Module["_HP_Constraint_GetAxisMotorType"] = Module["asm"]["HP_Constraint_GetAxisMotorType"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_SetAxisMotorPositionTarget"] = function() {
-      return (Module["_HP_Constraint_SetAxisMotorPositionTarget"] = Module["asm"]["HP_Constraint_SetAxisMotorPositionTarget"]).apply(null, arguments);
+    var _HP_Constraint_SetAxisMotorPositionTarget = Module["_HP_Constraint_SetAxisMotorPositionTarget"] = function() {
+      return (_HP_Constraint_SetAxisMotorPositionTarget = Module["_HP_Constraint_SetAxisMotorPositionTarget"] = Module["asm"]["HP_Constraint_SetAxisMotorPositionTarget"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_GetAxisMotorPositionTarget"] = function() {
-      return (Module["_HP_Constraint_GetAxisMotorPositionTarget"] = Module["asm"]["HP_Constraint_GetAxisMotorPositionTarget"]).apply(null, arguments);
+    var _HP_Constraint_GetAxisMotorPositionTarget = Module["_HP_Constraint_GetAxisMotorPositionTarget"] = function() {
+      return (_HP_Constraint_GetAxisMotorPositionTarget = Module["_HP_Constraint_GetAxisMotorPositionTarget"] = Module["asm"]["HP_Constraint_GetAxisMotorPositionTarget"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_SetAxisMotorVelocityTarget"] = function() {
-      return (Module["_HP_Constraint_SetAxisMotorVelocityTarget"] = Module["asm"]["HP_Constraint_SetAxisMotorVelocityTarget"]).apply(null, arguments);
+    var _HP_Constraint_SetAxisMotorVelocityTarget = Module["_HP_Constraint_SetAxisMotorVelocityTarget"] = function() {
+      return (_HP_Constraint_SetAxisMotorVelocityTarget = Module["_HP_Constraint_SetAxisMotorVelocityTarget"] = Module["asm"]["HP_Constraint_SetAxisMotorVelocityTarget"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_GetAxisMotorVelocityTarget"] = function() {
-      return (Module["_HP_Constraint_GetAxisMotorVelocityTarget"] = Module["asm"]["HP_Constraint_GetAxisMotorVelocityTarget"]).apply(null, arguments);
+    var _HP_Constraint_GetAxisMotorVelocityTarget = Module["_HP_Constraint_GetAxisMotorVelocityTarget"] = function() {
+      return (_HP_Constraint_GetAxisMotorVelocityTarget = Module["_HP_Constraint_GetAxisMotorVelocityTarget"] = Module["asm"]["HP_Constraint_GetAxisMotorVelocityTarget"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_SetAxisMotorMaxForce"] = function() {
-      return (Module["_HP_Constraint_SetAxisMotorMaxForce"] = Module["asm"]["HP_Constraint_SetAxisMotorMaxForce"]).apply(null, arguments);
+    var _HP_Constraint_SetAxisMotorMaxForce = Module["_HP_Constraint_SetAxisMotorMaxForce"] = function() {
+      return (_HP_Constraint_SetAxisMotorMaxForce = Module["_HP_Constraint_SetAxisMotorMaxForce"] = Module["asm"]["HP_Constraint_SetAxisMotorMaxForce"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_GetAxisMotorMaxForce"] = function() {
-      return (Module["_HP_Constraint_GetAxisMotorMaxForce"] = Module["asm"]["HP_Constraint_GetAxisMotorMaxForce"]).apply(null, arguments);
+    var _HP_Constraint_GetAxisMotorMaxForce = Module["_HP_Constraint_GetAxisMotorMaxForce"] = function() {
+      return (_HP_Constraint_GetAxisMotorMaxForce = Module["_HP_Constraint_GetAxisMotorMaxForce"] = Module["asm"]["HP_Constraint_GetAxisMotorMaxForce"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_SetAxisMotorStiffness"] = function() {
-      return (Module["_HP_Constraint_SetAxisMotorStiffness"] = Module["asm"]["HP_Constraint_SetAxisMotorStiffness"]).apply(null, arguments);
+    var _HP_Constraint_SetAxisMotorStiffness = Module["_HP_Constraint_SetAxisMotorStiffness"] = function() {
+      return (_HP_Constraint_SetAxisMotorStiffness = Module["_HP_Constraint_SetAxisMotorStiffness"] = Module["asm"]["HP_Constraint_SetAxisMotorStiffness"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_GetAxisMotorStiffness"] = function() {
-      return (Module["_HP_Constraint_GetAxisMotorStiffness"] = Module["asm"]["HP_Constraint_GetAxisMotorStiffness"]).apply(null, arguments);
+    var _HP_Constraint_GetAxisMotorStiffness = Module["_HP_Constraint_GetAxisMotorStiffness"] = function() {
+      return (_HP_Constraint_GetAxisMotorStiffness = Module["_HP_Constraint_GetAxisMotorStiffness"] = Module["asm"]["HP_Constraint_GetAxisMotorStiffness"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_SetAxisMotorDamping"] = function() {
-      return (Module["_HP_Constraint_SetAxisMotorDamping"] = Module["asm"]["HP_Constraint_SetAxisMotorDamping"]).apply(null, arguments);
+    var _HP_Constraint_SetAxisMotorDamping = Module["_HP_Constraint_SetAxisMotorDamping"] = function() {
+      return (_HP_Constraint_SetAxisMotorDamping = Module["_HP_Constraint_SetAxisMotorDamping"] = Module["asm"]["HP_Constraint_SetAxisMotorDamping"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_GetAxisMotorDamping"] = function() {
-      return (Module["_HP_Constraint_GetAxisMotorDamping"] = Module["asm"]["HP_Constraint_GetAxisMotorDamping"]).apply(null, arguments);
+    var _HP_Constraint_GetAxisMotorDamping = Module["_HP_Constraint_GetAxisMotorDamping"] = function() {
+      return (_HP_Constraint_GetAxisMotorDamping = Module["_HP_Constraint_GetAxisMotorDamping"] = Module["asm"]["HP_Constraint_GetAxisMotorDamping"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_SetAxisStiffness"] = function() {
-      return (Module["_HP_Constraint_SetAxisStiffness"] = Module["asm"]["HP_Constraint_SetAxisStiffness"]).apply(null, arguments);
+    var _HP_Constraint_SetAxisStiffness = Module["_HP_Constraint_SetAxisStiffness"] = function() {
+      return (_HP_Constraint_SetAxisStiffness = Module["_HP_Constraint_SetAxisStiffness"] = Module["asm"]["HP_Constraint_SetAxisStiffness"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_SetAxisDamping"] = function() {
-      return (Module["_HP_Constraint_SetAxisDamping"] = Module["asm"]["HP_Constraint_SetAxisDamping"]).apply(null, arguments);
+    var _HP_Constraint_SetAxisDamping = Module["_HP_Constraint_SetAxisDamping"] = function() {
+      return (_HP_Constraint_SetAxisDamping = Module["_HP_Constraint_SetAxisDamping"] = Module["asm"]["HP_Constraint_SetAxisDamping"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_SetAxisMotorTarget"] = function() {
-      return (Module["_HP_Constraint_SetAxisMotorTarget"] = Module["asm"]["HP_Constraint_SetAxisMotorTarget"]).apply(null, arguments);
+    var _HP_Constraint_SetAxisMotorTarget = Module["_HP_Constraint_SetAxisMotorTarget"] = function() {
+      return (_HP_Constraint_SetAxisMotorTarget = Module["_HP_Constraint_SetAxisMotorTarget"] = Module["asm"]["HP_Constraint_SetAxisMotorTarget"]).apply(null, arguments);
     };
-    Module["_HP_Constraint_GetAxisMotorTarget"] = function() {
-      return (Module["_HP_Constraint_GetAxisMotorTarget"] = Module["asm"]["HP_Constraint_GetAxisMotorTarget"]).apply(null, arguments);
+    var _HP_Constraint_GetAxisMotorTarget = Module["_HP_Constraint_GetAxisMotorTarget"] = function() {
+      return (_HP_Constraint_GetAxisMotorTarget = Module["_HP_Constraint_GetAxisMotorTarget"] = Module["asm"]["HP_Constraint_GetAxisMotorTarget"]).apply(null, arguments);
     };
-    Module["_HP_World_Create"] = function() {
-      return (Module["_HP_World_Create"] = Module["asm"]["HP_World_Create"]).apply(null, arguments);
+    var _HP_World_Create = Module["_HP_World_Create"] = function() {
+      return (_HP_World_Create = Module["_HP_World_Create"] = Module["asm"]["HP_World_Create"]).apply(null, arguments);
     };
-    Module["_HP_World_Release"] = function() {
-      return (Module["_HP_World_Release"] = Module["asm"]["HP_World_Release"]).apply(null, arguments);
+    var _HP_World_Release = Module["_HP_World_Release"] = function() {
+      return (_HP_World_Release = Module["_HP_World_Release"] = Module["asm"]["HP_World_Release"]).apply(null, arguments);
     };
-    Module["_HP_World_GetBodyBuffer"] = function() {
-      return (Module["_HP_World_GetBodyBuffer"] = Module["asm"]["HP_World_GetBodyBuffer"]).apply(null, arguments);
+    var _HP_World_GetBodyBuffer = Module["_HP_World_GetBodyBuffer"] = function() {
+      return (_HP_World_GetBodyBuffer = Module["_HP_World_GetBodyBuffer"] = Module["asm"]["HP_World_GetBodyBuffer"]).apply(null, arguments);
     };
-    Module["_HP_World_SetGravity"] = function() {
-      return (Module["_HP_World_SetGravity"] = Module["asm"]["HP_World_SetGravity"]).apply(null, arguments);
+    var _HP_World_SetGravity = Module["_HP_World_SetGravity"] = function() {
+      return (_HP_World_SetGravity = Module["_HP_World_SetGravity"] = Module["asm"]["HP_World_SetGravity"]).apply(null, arguments);
     };
-    Module["_HP_World_GetGravity"] = function() {
-      return (Module["_HP_World_GetGravity"] = Module["asm"]["HP_World_GetGravity"]).apply(null, arguments);
+    var _HP_World_GetGravity = Module["_HP_World_GetGravity"] = function() {
+      return (_HP_World_GetGravity = Module["_HP_World_GetGravity"] = Module["asm"]["HP_World_GetGravity"]).apply(null, arguments);
     };
-    Module["_HP_World_AddBody"] = function() {
-      return (Module["_HP_World_AddBody"] = Module["asm"]["HP_World_AddBody"]).apply(null, arguments);
+    var _HP_World_AddBody = Module["_HP_World_AddBody"] = function() {
+      return (_HP_World_AddBody = Module["_HP_World_AddBody"] = Module["asm"]["HP_World_AddBody"]).apply(null, arguments);
     };
-    Module["_HP_World_RemoveBody"] = function() {
-      return (Module["_HP_World_RemoveBody"] = Module["asm"]["HP_World_RemoveBody"]).apply(null, arguments);
+    var _HP_World_RemoveBody = Module["_HP_World_RemoveBody"] = function() {
+      return (_HP_World_RemoveBody = Module["_HP_World_RemoveBody"] = Module["asm"]["HP_World_RemoveBody"]).apply(null, arguments);
     };
-    Module["_HP_World_GetNumBodies"] = function() {
-      return (Module["_HP_World_GetNumBodies"] = Module["asm"]["HP_World_GetNumBodies"]).apply(null, arguments);
+    var _HP_World_GetNumBodies = Module["_HP_World_GetNumBodies"] = function() {
+      return (_HP_World_GetNumBodies = Module["_HP_World_GetNumBodies"] = Module["asm"]["HP_World_GetNumBodies"]).apply(null, arguments);
     };
-    Module["_HP_World_CastRayWithCollector"] = function() {
-      return (Module["_HP_World_CastRayWithCollector"] = Module["asm"]["HP_World_CastRayWithCollector"]).apply(null, arguments);
+    var _HP_World_CastRayWithCollector = Module["_HP_World_CastRayWithCollector"] = function() {
+      return (_HP_World_CastRayWithCollector = Module["_HP_World_CastRayWithCollector"] = Module["asm"]["HP_World_CastRayWithCollector"]).apply(null, arguments);
     };
-    Module["_HP_World_PointProximityWithCollector"] = function() {
-      return (Module["_HP_World_PointProximityWithCollector"] = Module["asm"]["HP_World_PointProximityWithCollector"]).apply(null, arguments);
+    var _HP_World_PointProximityWithCollector = Module["_HP_World_PointProximityWithCollector"] = function() {
+      return (_HP_World_PointProximityWithCollector = Module["_HP_World_PointProximityWithCollector"] = Module["asm"]["HP_World_PointProximityWithCollector"]).apply(null, arguments);
     };
-    Module["_HP_World_ShapeProximityWithCollector"] = function() {
-      return (Module["_HP_World_ShapeProximityWithCollector"] = Module["asm"]["HP_World_ShapeProximityWithCollector"]).apply(null, arguments);
+    var _HP_World_ShapeProximityWithCollector = Module["_HP_World_ShapeProximityWithCollector"] = function() {
+      return (_HP_World_ShapeProximityWithCollector = Module["_HP_World_ShapeProximityWithCollector"] = Module["asm"]["HP_World_ShapeProximityWithCollector"]).apply(null, arguments);
     };
-    Module["_HP_World_ShapeCastWithCollector"] = function() {
-      return (Module["_HP_World_ShapeCastWithCollector"] = Module["asm"]["HP_World_ShapeCastWithCollector"]).apply(null, arguments);
+    var _HP_World_ShapeCastWithCollector = Module["_HP_World_ShapeCastWithCollector"] = function() {
+      return (_HP_World_ShapeCastWithCollector = Module["_HP_World_ShapeCastWithCollector"] = Module["asm"]["HP_World_ShapeCastWithCollector"]).apply(null, arguments);
     };
-    Module["_HP_World_Step"] = function() {
-      return (Module["_HP_World_Step"] = Module["asm"]["HP_World_Step"]).apply(null, arguments);
+    var _HP_World_Step = Module["_HP_World_Step"] = function() {
+      return (_HP_World_Step = Module["_HP_World_Step"] = Module["asm"]["HP_World_Step"]).apply(null, arguments);
     };
-    Module["_HP_World_SetIdealStepTime"] = function() {
-      return (Module["_HP_World_SetIdealStepTime"] = Module["asm"]["HP_World_SetIdealStepTime"]).apply(null, arguments);
+    var _HP_World_SetIdealStepTime = Module["_HP_World_SetIdealStepTime"] = function() {
+      return (_HP_World_SetIdealStepTime = Module["_HP_World_SetIdealStepTime"] = Module["asm"]["HP_World_SetIdealStepTime"]).apply(null, arguments);
     };
-    Module["_HP_World_SetSpeedLimit"] = function() {
-      return (Module["_HP_World_SetSpeedLimit"] = Module["asm"]["HP_World_SetSpeedLimit"]).apply(null, arguments);
+    var _HP_World_SetSpeedLimit = Module["_HP_World_SetSpeedLimit"] = function() {
+      return (_HP_World_SetSpeedLimit = Module["_HP_World_SetSpeedLimit"] = Module["asm"]["HP_World_SetSpeedLimit"]).apply(null, arguments);
     };
-    Module["_HP_World_GetSpeedLimit"] = function() {
-      return (Module["_HP_World_GetSpeedLimit"] = Module["asm"]["HP_World_GetSpeedLimit"]).apply(null, arguments);
+    var _HP_World_GetSpeedLimit = Module["_HP_World_GetSpeedLimit"] = function() {
+      return (_HP_World_GetSpeedLimit = Module["_HP_World_GetSpeedLimit"] = Module["asm"]["HP_World_GetSpeedLimit"]).apply(null, arguments);
     };
-    Module["_HP_World_GetNextCollisionEvent"] = function() {
-      return (Module["_HP_World_GetNextCollisionEvent"] = Module["asm"]["HP_World_GetNextCollisionEvent"]).apply(null, arguments);
+    var _HP_World_GetNextCollisionEvent = Module["_HP_World_GetNextCollisionEvent"] = function() {
+      return (_HP_World_GetNextCollisionEvent = Module["_HP_World_GetNextCollisionEvent"] = Module["asm"]["HP_World_GetNextCollisionEvent"]).apply(null, arguments);
     };
-    Module["_HP_World_GetNextTriggerEvent"] = function() {
-      return (Module["_HP_World_GetNextTriggerEvent"] = Module["asm"]["HP_World_GetNextTriggerEvent"]).apply(null, arguments);
+    var _HP_World_GetNextTriggerEvent = Module["_HP_World_GetNextTriggerEvent"] = function() {
+      return (_HP_World_GetNextTriggerEvent = Module["_HP_World_GetNextTriggerEvent"] = Module["asm"]["HP_World_GetNextTriggerEvent"]).apply(null, arguments);
     };
-    Module["_HP_QueryCollector_Create"] = function() {
-      return (Module["_HP_QueryCollector_Create"] = Module["asm"]["HP_QueryCollector_Create"]).apply(null, arguments);
+    var _HP_QueryCollector_Create = Module["_HP_QueryCollector_Create"] = function() {
+      return (_HP_QueryCollector_Create = Module["_HP_QueryCollector_Create"] = Module["asm"]["HP_QueryCollector_Create"]).apply(null, arguments);
     };
-    Module["_HP_QueryCollector_Release"] = function() {
-      return (Module["_HP_QueryCollector_Release"] = Module["asm"]["HP_QueryCollector_Release"]).apply(null, arguments);
+    var _HP_QueryCollector_Release = Module["_HP_QueryCollector_Release"] = function() {
+      return (_HP_QueryCollector_Release = Module["_HP_QueryCollector_Release"] = Module["asm"]["HP_QueryCollector_Release"]).apply(null, arguments);
     };
-    Module["_HP_QueryCollector_GetNumHits"] = function() {
-      return (Module["_HP_QueryCollector_GetNumHits"] = Module["asm"]["HP_QueryCollector_GetNumHits"]).apply(null, arguments);
+    var _HP_QueryCollector_GetNumHits = Module["_HP_QueryCollector_GetNumHits"] = function() {
+      return (_HP_QueryCollector_GetNumHits = Module["_HP_QueryCollector_GetNumHits"] = Module["asm"]["HP_QueryCollector_GetNumHits"]).apply(null, arguments);
     };
-    Module["_HP_QueryCollector_GetCastRayResult"] = function() {
-      return (Module["_HP_QueryCollector_GetCastRayResult"] = Module["asm"]["HP_QueryCollector_GetCastRayResult"]).apply(null, arguments);
+    var _HP_QueryCollector_GetCastRayResult = Module["_HP_QueryCollector_GetCastRayResult"] = function() {
+      return (_HP_QueryCollector_GetCastRayResult = Module["_HP_QueryCollector_GetCastRayResult"] = Module["asm"]["HP_QueryCollector_GetCastRayResult"]).apply(null, arguments);
     };
-    Module["_HP_QueryCollector_GetPointProximityResult"] = function() {
-      return (Module["_HP_QueryCollector_GetPointProximityResult"] = Module["asm"]["HP_QueryCollector_GetPointProximityResult"]).apply(null, arguments);
+    var _HP_QueryCollector_GetPointProximityResult = Module["_HP_QueryCollector_GetPointProximityResult"] = function() {
+      return (_HP_QueryCollector_GetPointProximityResult = Module["_HP_QueryCollector_GetPointProximityResult"] = Module["asm"]["HP_QueryCollector_GetPointProximityResult"]).apply(null, arguments);
     };
-    Module["_HP_QueryCollector_GetShapeProximityResult"] = function() {
-      return (Module["_HP_QueryCollector_GetShapeProximityResult"] = Module["asm"]["HP_QueryCollector_GetShapeProximityResult"]).apply(null, arguments);
+    var _HP_QueryCollector_GetShapeProximityResult = Module["_HP_QueryCollector_GetShapeProximityResult"] = function() {
+      return (_HP_QueryCollector_GetShapeProximityResult = Module["_HP_QueryCollector_GetShapeProximityResult"] = Module["asm"]["HP_QueryCollector_GetShapeProximityResult"]).apply(null, arguments);
     };
-    Module["_HP_QueryCollector_GetShapeCastResult"] = function() {
-      return (Module["_HP_QueryCollector_GetShapeCastResult"] = Module["asm"]["HP_QueryCollector_GetShapeCastResult"]).apply(null, arguments);
+    var _HP_QueryCollector_GetShapeCastResult = Module["_HP_QueryCollector_GetShapeCastResult"] = function() {
+      return (_HP_QueryCollector_GetShapeCastResult = Module["_HP_QueryCollector_GetShapeCastResult"] = Module["asm"]["HP_QueryCollector_GetShapeCastResult"]).apply(null, arguments);
     };
-    Module["_main"] = function() {
-      return (Module["_main"] = Module["asm"]["main"]).apply(null, arguments);
+    var _main = Module["_main"] = function() {
+      return (_main = Module["_main"] = Module["asm"]["main"]).apply(null, arguments);
     };
     var _malloc = Module["_malloc"] = function() {
       return (_malloc = Module["_malloc"] = Module["asm"]["malloc"]).apply(null, arguments);
@@ -1782,44 +1840,44 @@ var HavokPhysics = (() => {
     var _free = Module["_free"] = function() {
       return (_free = Module["_free"] = Module["asm"]["free"]).apply(null, arguments);
     };
-    Module["_HP_Debug_StartRecordingStats"] = function() {
-      return (Module["_HP_Debug_StartRecordingStats"] = Module["asm"]["HP_Debug_StartRecordingStats"]).apply(null, arguments);
+    var _HP_Debug_StartRecordingStats = Module["_HP_Debug_StartRecordingStats"] = function() {
+      return (_HP_Debug_StartRecordingStats = Module["_HP_Debug_StartRecordingStats"] = Module["asm"]["HP_Debug_StartRecordingStats"]).apply(null, arguments);
     };
-    Module["_HP_Debug_StopRecordingStats"] = function() {
-      return (Module["_HP_Debug_StopRecordingStats"] = Module["asm"]["HP_Debug_StopRecordingStats"]).apply(null, arguments);
+    var _HP_Debug_StopRecordingStats = Module["_HP_Debug_StopRecordingStats"] = function() {
+      return (_HP_Debug_StopRecordingStats = Module["_HP_Debug_StopRecordingStats"] = Module["asm"]["HP_Debug_StopRecordingStats"]).apply(null, arguments);
     };
-    Module["___errno_location"] = function() {
-      return (Module["___errno_location"] = Module["asm"]["__errno_location"]).apply(null, arguments);
+    var ___errno_location = Module["___errno_location"] = function() {
+      return (___errno_location = Module["___errno_location"] = Module["asm"]["__errno_location"]).apply(null, arguments);
     };
-    Module["_htons"] = function() {
-      return (Module["_htons"] = Module["asm"]["htons"]).apply(null, arguments);
+    var _htons = Module["_htons"] = function() {
+      return (_htons = Module["_htons"] = Module["asm"]["htons"]).apply(null, arguments);
     };
-    Module["_ntohs"] = function() {
-      return (Module["_ntohs"] = Module["asm"]["ntohs"]).apply(null, arguments);
+    var _ntohs = Module["_ntohs"] = function() {
+      return (_ntohs = Module["_ntohs"] = Module["asm"]["ntohs"]).apply(null, arguments);
     };
     var ___getTypeName = Module["___getTypeName"] = function() {
       return (___getTypeName = Module["___getTypeName"] = Module["asm"]["__getTypeName"]).apply(null, arguments);
     };
-    Module["__embind_initialize_bindings"] = function() {
-      return (Module["__embind_initialize_bindings"] = Module["asm"]["_embind_initialize_bindings"]).apply(null, arguments);
+    var __embind_initialize_bindings = Module["__embind_initialize_bindings"] = function() {
+      return (__embind_initialize_bindings = Module["__embind_initialize_bindings"] = Module["asm"]["_embind_initialize_bindings"]).apply(null, arguments);
     };
-    Module["_htonl"] = function() {
-      return (Module["_htonl"] = Module["asm"]["htonl"]).apply(null, arguments);
+    var _htonl = Module["_htonl"] = function() {
+      return (_htonl = Module["_htonl"] = Module["asm"]["htonl"]).apply(null, arguments);
     };
-    Module["_setThrew"] = function() {
-      return (Module["_setThrew"] = Module["asm"]["setThrew"]).apply(null, arguments);
+    var _setThrew = Module["_setThrew"] = function() {
+      return (_setThrew = Module["_setThrew"] = Module["asm"]["setThrew"]).apply(null, arguments);
     };
-    Module["_saveSetjmp"] = function() {
-      return (Module["_saveSetjmp"] = Module["asm"]["saveSetjmp"]).apply(null, arguments);
+    var _saveSetjmp = Module["_saveSetjmp"] = function() {
+      return (_saveSetjmp = Module["_saveSetjmp"] = Module["asm"]["saveSetjmp"]).apply(null, arguments);
     };
-    Module["stackSave"] = function() {
-      return (Module["stackSave"] = Module["asm"]["stackSave"]).apply(null, arguments);
+    var stackSave = Module["stackSave"] = function() {
+      return (stackSave = Module["stackSave"] = Module["asm"]["stackSave"]).apply(null, arguments);
     };
-    Module["stackRestore"] = function() {
-      return (Module["stackRestore"] = Module["asm"]["stackRestore"]).apply(null, arguments);
+    var stackRestore = Module["stackRestore"] = function() {
+      return (stackRestore = Module["stackRestore"] = Module["asm"]["stackRestore"]).apply(null, arguments);
     };
-    Module["stackAlloc"] = function() {
-      return (Module["stackAlloc"] = Module["asm"]["stackAlloc"]).apply(null, arguments);
+    var stackAlloc = Module["stackAlloc"] = function() {
+      return (stackAlloc = Module["stackAlloc"] = Module["asm"]["stackAlloc"]).apply(null, arguments);
     };
     var calledRun;
     dependenciesFulfilled = function runCaller() {
@@ -1839,6 +1897,7 @@ var HavokPhysics = (() => {
       }
     }
     function run(args) {
+      args = args || arguments_;
       if (runDependencies > 0) {
         return;
       }
@@ -1855,7 +1914,7 @@ var HavokPhysics = (() => {
         preMain();
         readyPromiseResolve(Module);
         if (Module["onRuntimeInitialized"]) Module["onRuntimeInitialized"]();
-        if (shouldRunNow) callMain();
+        if (shouldRunNow) callMain(args);
         postRun();
       }
       if (Module["setStatus"]) {
@@ -1882,7 +1941,14 @@ var HavokPhysics = (() => {
     return HavokPhysics2.ready;
   };
 })();
-(async () => {
-  const havokInterface = await HavokPhysics();
-  console.log(havokInterface);
-})();
+var HavokPhysics_es_default = HavokPhysics;
+
+// tsc/index.js
+var wasmBinary = await fs.readFile(path.join(
+  //
+  import.meta.dirname,
+  "../",
+  "node_modules/@babylonjs/havok/lib/esm/HavokPhysics.wasm"
+));
+var havokInterface = await HavokPhysics_es_default({ wasmBinary });
+console.log(havokInterface);
